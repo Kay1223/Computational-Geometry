@@ -1,0 +1,14 @@
+
+import numpy as np
+import matplotlib.pyplot as plt
+import pandas
+from scipy.spatial import Voronoi, voronoi_plot_2d
+
+npoint=20
+maxvalue=10
+points =np.array([[np.random.rand()*maxvalue,np.random.rand()*maxvalue] for i in range(npoint)])
+
+vor = Voronoi(points)
+voronoi_plot_2d(vor)
+
+
