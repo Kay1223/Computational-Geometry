@@ -1,0 +1,319 @@
+
+# coding: utf-8
+
+# In[1]:
+
+get_ipython().magic('matplotlib inline')
+import matplotlib.pyplot as plt
+import random
+import time
+import itertools
+import urllib
+import csv
+import functools
+from statistics import mean, stdev
+
+
+# In[2]:
+
+def alltours_tsp(cities):
+    "Generate all possible tours of the cities and choose the shortest tour."
+    return shortest_tour(alltours(cities))
+
+def shortest_tour(tours): 
+    "Choose the tour with the minimum tour length."
+    return min(tours, key=tour_length)
+
+# TO DO: Data types: cities, tours, Functions: alltours, tour_length
+
+
+# In[3]:
+
+alltours = itertools.permutations 
+
+
+# In[4]:
+
+cities = {1, 2, 3, 4}
+
+list(alltours(cities))
+
+
+# In[5]:
+
+def tour_length(tour):
+    "The total of distances between each pair of consecutive cities in the tour."
+    return sum(distance(tour[i], tour[i-1]) 
+               for i in range(len(tour)))
+
+# TO DO: Functions: distance, Data types: cities
+
+
+# In[6]:
+
+# Cities are represented as Points, which are a subclass of complex numbers
+
+class Point(complex):
+    x = property(lambda p: p.real)
+    y = property(lambda p: p.imag)
+    
+City = Point
+
+def distance(A, B): 
+    "The distance between two points."
+    return abs(A - B)
+
+
+# In[7]:
+
+A = City(3, 0)
+B = City(0, 4)
+distance(A, B)
+
+
+# In[8]:
+
+{City(random.randrange(1000), random.randrange(1000)) for c in range(6)}
+
+
+# In[9]:
+
+def Cities(n, width=900, height=600, seed=42):
+    "Make a set of n cities, each with random coordinates within a (width x height) rectangle."
+    random.seed(seed * n)
+    return frozenset(City(random.randrange(width), random.randrange(height))
+                     for c in range(n))
+
+
+# In[10]:
+
+# A set of 5 cities
+Cities(5)
+
+
+# In[11]:
+
+# The exact same set of 5 cities each time
+[Cities(5) for i in range(3)]
+
+
+# In[12]:
+
+# A different set of 5 cities each time
+[Cities(5, seed=i) for i in range(3)]
+
+
+# In[13]:
+
+alltours_tsp(Cities(8))
+
+
+# In[14]:
+
+tour_length(alltours_tsp(Cities(8)))
+
+
+# In[15]:
+
+def plot_tour(tour): 
+    "Plot the cities as circles and the tour as lines between them."
+    plot_lines(list(tour) + [tour[0]])
+    
+def plot_lines(points, style='bo-'):
+    "Plot lines to connect a series of points."
+    plt.plot([p.x for p in points], [p.y for p in points], style)
+    plt.axis('scaled'); plt.axis('off')
+
+
+# In[16]:
+
+plot_tour(alltours_tsp(Cities(8)))
+
+
+# In[18]:
+
+def plot_tsp(algorithm, cities):
+    "Apply a TSP algorithm to cities, plot the resulting tour, and print information."
+    # Find the solution and time how long it takes
+    t0 = time.clock()
+    tour = algorithm(cities)
+    t1 = time.clock()
+    assert valid_tour(tour, cities)
+    plot_tour(tour); plt.show()
+    print("{} city tour with length {:.1f} in {:.3f} secs for {}"
+          .format(len(tour), tour_length(tour), t1 - t0, algorithm.__name__))
+    
+def valid_tour(tour, cities):
+    "Is tour a valid tour for these cities?"
+    return set(tour) == set(cities) and len(tour) == len(cities)
+
+
+# In[19]:
+
+plot_tsp(alltours_tsp, Cities(8))
+
+
+# In[20]:
+
+list(alltours({1, 2, 3}))
+
+
+# In[21]:
+
+def alltours(cities):
+    "Return a list of tours, each a permutation of cities, but each one starting with the same city."
+    start = first(cities)
+    return [[start] + Tour(rest)
+            for rest in itertools.permutations(cities - {start})]
+
+def first(collection):
+    "Start iterating over collection, and return the first element."
+    return next(iter(collection))
+
+Tour = list  # Tours are implemented as lists of cities
+
+
+# In[22]:
+
+alltours({1, 2, 3})
+
+
+# In[23]:
+
+alltours({1, 2, 3, 4})
+
+
+# In[25]:
+
+plot_tsp(alltours_tsp, Cities(8))
+
+
+# In[26]:
+
+plot_tsp(alltours_tsp, Cities(10))
+
+
+# In[27]:
+
+def nn_tsp(cities):
+    """Start the tour at the first city; at each step extend the tour 
+    by moving from the previous city to the nearest neighboring city, C,
+    that has not yet been visited."""
+    start = first(cities)
+    tour = [start]
+    unvisited = set(cities - {start})
+    while unvisited:
+        C = nearest_neighbor(tour[-1], unvisited)
+        tour.append(C)
+        unvisited.remove(C)
+    return tour
+
+def nearest_neighbor(A, cities):
+    "Find the city in cities that is nearest to city A."
+    return min(cities, key=lambda c: distance(c, A))
+
+
+# In[28]:
+
+plot_tsp(alltours_tsp, Cities(10))
+
+
+# In[29]:
+
+plot_tsp(nn_tsp, Cities(10))
+
+
+# In[30]:
+
+def plot_tour(tour):
+    "Plot the cities as circles and the tour as lines between them. Start city is red square."
+    start = tour[0]
+    plot_lines(list(tour) + [start])
+    plot_lines([start], 'rs') # Mark the start city with a red square
+
+
+# In[31]:
+
+plot_tsp(nn_tsp, Cities(10))
+
+
+# In[32]:
+
+def length_ratio(cities): 
+    "The ratio of the tour lengths for nn_tsp and alltours_tsp algorithms."
+    return tour_length(nn_tsp(cities)) / tour_length(alltours_tsp(cities))
+
+sorted(length_ratio(Cities(8, seed=i*i)) for i in range(11))
+
+
+# In[33]:
+
+plot_tsp(nn_tsp, Cities(1000))
+
+
+# In[34]:
+
+def repeated_nn_tsp(cities):
+    "Repeat the nn_tsp algorithm starting from each city; return the shortest tour."
+    return shortest_tour(nn_tsp(cities, start) 
+                         for start in cities)
+
+
+# In[35]:
+
+def nn_tsp(cities, start=None):
+    """Start the tour at the first city; at each step extend the tour 
+    by moving from the previous city to its nearest neighbor 
+    that has not yet been visited."""
+    if start is None: start = first(cities)
+    tour = [start]
+    unvisited = set(cities - {start})
+    while unvisited:
+        C = nearest_neighbor(tour[-1], unvisited)
+        tour.append(C)
+        unvisited.remove(C)
+    return tour
+
+
+# In[36]:
+
+# Compare nn_tsp to repeated_nn_tsp
+plot_tsp(nn_tsp, Cities(100))
+plot_tsp(repeated_nn_tsp, Cities(100))
+
+
+# In[37]:
+
+for f in [nn_tsp, repeated_nn_tsp, alltours_tsp]:
+    plot_tsp(f, Cities(10))
+
+
+# In[38]:
+
+def repeated_nn_tsp(cities, repetitions=100):
+    "Repeat the nn_tsp algorithm starting from specified number of cities; return the shortest tour."
+    return shortest_tour(nn_tsp(cities, start) 
+                         for start in sample(cities, repetitions))
+
+def sample(population, k, seed=42):
+    "Return a list of k elements sampled from population. Set random.seed with seed."
+    if k is None or k > len(population): 
+        return population
+    random.seed(len(population) * k * seed)
+    return random.sample(population, k)
+
+
+# In[39]:
+
+def repeat_10_nn_tsp(cities): return repeated_nn_tsp(cities, 10)
+def repeat_100_nn_tsp(cities): return repeated_nn_tsp(cities, 100)
+
+
+# In[40]:
+
+plot_tsp(nn_tsp, Cities(300))
+plot_tsp(repeat_10_nn_tsp, Cities(300))
+plot_tsp(repeat_100_nn_tsp, Cities(300))
+
+
+
